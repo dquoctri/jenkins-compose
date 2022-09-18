@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  dind:
+    container_name: dind_ctn
+    image: ${DING_IMAGE:-docker:dind}
+    user: root
+    privileged: true
+    expose:
+      - 2375
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    networks:
+      - jenkins_dind
+
+  jenkins:
+    container_name: jenkins_ctn
+    image: jenkins/jenkins:lts
+    user: root
+    depends_on:
+      - dind
+    ports:
+      # HTTP management UI
+      - 8080:${JENKINS_UI_PORT:-8080}
+      # Master, Slave comunication
+      - 50000:${JENKINS_MASTER_PORT:-50000}
+    volumes:
+      - ./jenkins:/var/jenkins_home
+      - /usr/bin/docker:/usr/bin/docker
+    environment:
+      DOCKER_HOST: "tcp://dind:2375"
+      JAVA_OPTS: "-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"
+    networks:
+      - jenkins_dind
+    restart: on-failure
+
+networks:
+  jenkins_dind:
+    driver: bridge
